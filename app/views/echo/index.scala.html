@@ -1,0 +1,45 @@
+@( title : String)
+
+@main(title) {
+
+<input id="message" type="text">
+<input type="button" value="エコー" onclick="onSend()">
+
+<hr>
+<h2 id="echo"></h2>
+<script type="text/javascript">
+
+    const url = "ws://localhost:9000/echo/ws";
+    var received = document.getElementById("echo");
+    var message = document.getElementById("message");
+
+    var ws;
+
+    // FireFoxとの互換性を考慮してインスタンス化
+    if ("WebSocket" in window) {
+        ws = new WebSocket(url);
+    } else if ("MozWebSocket" in window) {
+        ws = new MozWebSocket(url);
+    }
+
+    // メッセージ受信時のコールバック関数
+    ws.onmessage =     function(event){
+        console.log("エコー:" + event.data);
+        received.innerText = event.data;
+    }
+
+    // メッセージ送信
+    function onSend(){
+        ws.send(message.value);
+        console.log("送信メッセージ:" + message.value);
+    }
+
+    // 終了時に明示的に接続を閉じる
+    window.onunload = function(){
+        var code = 4500;
+        var reason = "クライアントが閉じられました。";
+        ws.close(code,reason);
+    }
+
+</script>
+}
