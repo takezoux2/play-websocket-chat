@@ -2,8 +2,10 @@ package controllers
 
 import play.api._
 import libs.concurrent.Promise
-import libs.iteratee.{PushEnumerator, Enumerator, Iteratee}
+import play.api.libs.iteratee.Concurrent.Channel
+import play.api.libs.iteratee.{Concurrent, Enumerator, Iteratee}
 import play.api.mvc._
+import scala.concurrent.ExecutionContext.Implicits.global
 /**
  *
  * User: takeshita
@@ -15,25 +17,26 @@ object Chat extends Controller {
     Ok(views.html.chat.index("aaa"))
   }
 
-  var roomConnections : List[PushEnumerator[String]] = Nil
+  var roomConnections : List[Channel[String]] = Nil
 
-  def chat =  WebSocket.async[String] {
+  def chat =  WebSocket.using[String] {
     request => {
-      val out = Enumerator.imperative[String]()
+
+      val (out,channel) = Concurrent.broadcast[String]
       // register
-      roomConnections ::= out
+      roomConnections ::= channel
 
       val in = Iteratee.foreach[String](s => {
         println(s)
         // push message to each connections
         roomConnections.foreach(_.push(s))
-      }).mapDone(_ => {
+      }).map(_ => {
         // unregister
-        roomConnections = roomConnections.filterNot( _ == out)
+        roomConnections = roomConnections.filterNot( _ == channel)
         println("Disconnected")
       })
 
-      Promise.pure((in,out))
+      (in,out)
 
     }
   }

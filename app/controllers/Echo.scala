@@ -2,8 +2,9 @@ package controllers
 
 import play.api._
 import libs.concurrent.Promise
-import libs.iteratee.{PushEnumerator, Enumerator, Iteratee}
+import play.api.libs.iteratee.{Concurrent, Enumerator, Iteratee}
 import play.api.mvc._
+import scala.concurrent.ExecutionContext.Implicits.global
 
 /**
  *
@@ -16,19 +17,19 @@ object Echo extends Controller {
     Ok(views.html.echo.index("Echo"))
   }
 
-  def echo = WebSocket.async[String] {
+  def echo = WebSocket.using[String] {
     request => {
       // create PushEnumerator
-      val out = Enumerator.imperative[String]()
+      val (out,channel) = Concurrent.broadcast[String]
       val in = Iteratee.foreach[String](text => {
         println(text)
         // push
-        out.push(text)
-      }).mapDone(_ => {
+        channel.push(text)
+      }).map(_ => {
         // on connection disconnected
         println("Disconnected")
       })
-      Promise.pure(in -> out)
+      in -> out
     }
   }
 
